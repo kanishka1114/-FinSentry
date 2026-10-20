@@ -1,0 +1,25 @@
+# Container image for hosting the FinSentry dashboard on Vercel (built from GitHub on every push).
+# It serves the saved results in outputs/ and models/; it never trains or needs the raw dataset.
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Exact versions the saved models were trained with (recorded in outputs/metrics.json);
+# a different scikit-learn version may fail to load models/*.joblib.
+RUN pip install \
+    numpy==2.5.4 pandas==3.0.6 scikit-learn==1.9.1 joblib==1.6.0 \
+    streamlit==1.66.0 plotly==7.1.0
+
+COPY .streamlit ./.streamlit
+COPY app.py ./
+COPY src ./src
+COPY outputs ./outputs
+COPY models ./models
+
+# Vercel routes traffic to $PORT (default 80).
+CMD ["sh", "-c", "exec streamlit run app.py --server.port ${PORT:-80} --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false"]

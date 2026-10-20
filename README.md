@@ -206,6 +206,11 @@ The first `--initial-frac` (50%) of rows is history; the rest is cut into `--win
 | `--bootstrap`, `--block-bootstrap`, `--block-steps` | 300, =bootstrap, auto | Intervals |
 | `--rf-trees`, `--rf-max-depth`, `--rf-min-leaf`, `--rf-max-samples`, `--n-jobs` | 100, 12, 20, 0.5, 2 | Random Forest sized for 8 GB |
 
+## Hosting on Vercel
+`Dockerfile.vercel` packages the dashboard with the saved results and models as a container. Vercel builds it automatically when the GitHub repository is imported as a Vercel project (no build settings needed) and rebuilds on every push. The image pins the library versions the models were trained with, and it never trains or needs the dataset.
+
+Vercel runs containers as autoscaling functions with a maximum request duration (300 s on Hobby, up to 800 s on Pro). Streamlit keeps a live connection open, so a hosted session reconnects after that limit, and the page may return to Overview. An idle deployment also scales to zero, so the first visit after a pause takes a few extra seconds.
+
 ## Dashboard pages
 Overview · Transaction Explorer (with explanations) · Model Comparison · Thresholds & Alerts · Temporal Backtest (with drift) · Robustness Study · Reliability & Calibration · Explainability · Try a Transaction (with explanations) · Report Summary. Everything is read from saved outputs; startup does no training or bootstrapping.
 
