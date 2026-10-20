@@ -1,0 +1,29 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.log
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets and local environment files
+.env
+.env.*
+.streamlit/secrets.toml
+*.pem
+*.key
+
+# Raw data: the PaySim CSV is ~470 MB and licensed separately (see data/README.md)
+data/*
+!data/README.md
+
+# Per-seed robustness models are not used by the dashboard; python -m src.robustness recreates them
+outputs/robustness/seed_*/models/
