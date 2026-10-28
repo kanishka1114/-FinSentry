@@ -41,7 +41,11 @@ st.markdown(
     "- **Type**: CASH_IN, CASH_OUT, DEBIT, PAYMENT or TRANSFER\n"
     "- **Hour of day**\n"
     "- **Sender's balance before** and **after** the transaction\n\n"
-    "No names, account numbers or other personal details are used.")
+    "No names, account numbers or other personal details are used, and the fraud label is "
+    "never an input.\n\n"
+    "Because the balance **after** the transaction is only known once the money has moved, "
+    "this is **post-transaction fraud review**: it checks completed transactions. It does not "
+    "block or predict fraud before a transaction happens.")
 
 st.header("3. Train, validation and test, in time order")
 st.dataframe(pd.DataFrame([

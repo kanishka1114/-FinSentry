@@ -47,7 +47,8 @@ st.info(
     "Classroom demonstration. The model was trained on PaySim, a simulated dataset, and an "
     "alert does not prove that a transaction is fraud.")
 st.markdown(
-    "Enter a transaction. The Random Forest gives it a score; if the score is at or above "
+    "Enter a **completed** transaction for post-transaction review, including the sender's "
+    "balance after it. The Random Forest gives it a score; if the score is at or above "
     "the threshold, it raises an alert. **If the score is below the threshold, there is no "
     "alert.**")
 

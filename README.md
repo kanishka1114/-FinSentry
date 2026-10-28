@@ -1,6 +1,6 @@
 # FinSentry-Mini
 
-A small machine-learning project that flags fraudulent transactions in **PaySim**, a *simulated* mobile-money dataset. It compares a **simple rule** with a **Random Forest** model on later transactions that the model never saw.
+A small machine-learning project for **post-transaction fraud review** in **PaySim**, a *simulated* mobile-money dataset: after a transaction has happened, decide whether it should be sent for a fraud check. It compares a **simple rule** with a **Random Forest** model on later transactions that the model never saw. Because the model uses the sender's balance after the transaction, it reviews completed transactions; it does not block or predict fraud before a transaction happens.
 
 ## Results (test period, simulated data)
 
@@ -16,14 +16,16 @@ A small machine-learning project that flags fraudulent transactions in **PaySim*
 
 ## How it works
 1. **Data:** a random sample of 1,000,000 PaySim transactions (seed 42); 1,279 are fraud.
-2. **Inputs:** amount, transaction type, hour of day, and the sender's balance before and after the transaction. No names or account numbers.
+2. **Inputs:** amount, transaction type, hour of day, and the sender's balance before and after the transaction. No names or account numbers, and never the fraud label (`isFraud`) or PaySim's own `isFlaggedFraud` column.
 3. **Time split:** train (hours 1–323) to teach the model, validation (324–377) to choose the alert threshold, test (378–742) used once for the final results.
 4. **Threshold:** the score cut-off with the best F1 on the validation period.
 
 ## What changed from the first version
 The first version used only amount, type and hour, and reached F1 0.37 (163 fraud caught, 87 false alerts). Adding the sender's balance before and after raised F1 to 0.77 (405 caught, 24 false alerts), with the same sample, split, model settings and threshold method. In PaySim, fraud often empties the sender's account, which the amount alone cannot show. Logistic Regression was dropped to keep the comparison simple.
 
-The first version's experiment (`exp-0781f6ac1d`, run `a7545b9ebf9d`, 2026-10-20) is kept in this repository's git history and in [FinSentry-original-archive](https://github.com/kanishka1114/FinSentry-original-archive).
+The first version deliberately left all balance columns out, because PaySim's balances are known to make fraud much easier to spot and the balance after is only known once a transaction is complete. That is why this version is described only as post-transaction review. Columns that test whether the balances add up were not used: they gave a near-perfect score that reflects how the simulator records fraud rather than a pattern worth learning.
+
+The first version's experiment (`exp-0781f6ac1d`, run `a7545b9ebf9d`, 2026-10-20) is unchanged in [FinSentry-original-archive](https://github.com/kanishka1114/FinSentry-original-archive) and in this repository's git history. Its test results were: rule precision 0.016, recall 0.667, F1 0.031; Logistic Regression precision 0.356, recall 0.100, F1 0.157; Random Forest precision 0.652, recall 0.260, F1 0.372.
 
 ## Files
 - `finsentry.py`: shared code for loading the data, the time split, the model inputs, the rule and the metrics.
@@ -49,3 +51,5 @@ python verify.py path/to/PS_20174392719_1491204439457_log.csv   # ends with "Che
 
 ## Limitation
 PaySim is simulated. These results show how the model did on this simulated data, not how it would perform on real bank transactions. The threshold was chosen on only 79 validation frauds, so results at that threshold can vary.
+
+The threshold was chosen on the validation period only. However, before choosing which inputs to add, trial runs compared several input sets and showed both their validation and their test results. The validation results pointed the same way as the test results, and the chosen set was not the top test scorer, but the test period was not completely untouched by that choice.

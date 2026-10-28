@@ -45,7 +45,8 @@ test = r["split"]["test"]
 rule, rf, before = r["rule"]["test"], r["random_forest"]["test"], r["previous_version"]
 
 st.markdown(
-    "**Goal:** flag fraudulent mobile-money transactions. We compare a **simple rule** with a "
+    "**Goal: post-transaction fraud review.** After a mobile-money transaction has happened, "
+    "decide whether it should be sent for a fraud check. We compare a **simple rule** with a "
     "**Random Forest** model on the **test period**: "
     f"{test['rows']:,} later transactions ({test['fraud']} of them fraud) that the model "
     "never saw while it was trained or while its threshold was chosen.")
@@ -84,7 +85,9 @@ st.dataframe(pd.DataFrame([
 st.markdown(
     "Adding the sender's account balance before and after the transaction raised F1 from "
     f"**{before['f1']:.2f} to {rf['f1']:.2f}**. In PaySim, fraud often empties the sender's "
-    "account, and the amount alone cannot show that.")
+    "account, and the amount alone cannot show that. The balance after is only known once "
+    "the transaction is complete, so this model reviews transactions after they happen; it "
+    "does not stop or predict fraud beforehand.")
 
 st.header("Confusion matrices (test period)")
 c1, c2 = st.columns(2)
