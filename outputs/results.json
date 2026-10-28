@@ -1,0 +1,136 @@
+{
+  "created_utc": "2026-10-28T17:27:34+00:00",
+  "versions": {
+    "python": "3.13.3",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scikit-learn": "1.9.1"
+  },
+  "data": {
+    "rows_in_file": 6362620,
+    "fraud_in_file": 8213,
+    "sample_rows": 1000000,
+    "sample_fraud": 1279,
+    "seed": 42
+  },
+  "split": {
+    "train": {
+      "first_step": 1,
+      "last_step": 323,
+      "rows": 701467,
+      "fraud": 573,
+      "fraud_rate": 0.0008168595243967286
+    },
+    "validation": {
+      "first_step": 324,
+      "last_step": 377,
+      "rows": 148091,
+      "fraud": 79,
+      "fraud_rate": 0.0005334557805673539
+    },
+    "test": {
+      "first_step": 378,
+      "last_step": 742,
+      "rows": 150442,
+      "fraud": 627,
+      "fraud_rate": 0.004167719120990149
+    }
+  },
+  "inputs": [
+    "amount",
+    "log_amount",
+    "hour_sin",
+    "hour_cos",
+    "type",
+    "sender_balance_before",
+    "sender_balance_after"
+  ],
+  "model": {
+    "name": "Random Forest",
+    "settings": {
+      "n_estimators": 100,
+      "max_depth": 12,
+      "min_samples_leaf": 20,
+      "max_samples": 0.5
+    },
+    "class_weight": "balanced_subsample",
+    "threshold": 0.741477502988132
+  },
+  "rule": {
+    "description": "Alert on a TRANSFER or CASH_OUT of at least 200,000, or on any transaction of at least 1,000,000.",
+    "validation": {
+      "fraud_caught": 49,
+      "false_alerts": 29265,
+      "missed_fraud": 30,
+      "correctly_ignored": 118747,
+      "precision": 0.001671556252984922,
+      "recall": 0.620253164556962,
+      "f1": 0.003334127173136461,
+      "accuracy": 0.8021824418769541
+    },
+    "test": {
+      "fraud_caught": 418,
+      "false_alerts": 26120,
+      "missed_fraud": 209,
+      "correctly_ignored": 123695,
+      "precision": 0.015750998568091038,
+      "recall": 0.6666666666666666,
+      "f1": 0.030774894165286212,
+      "accuracy": 0.8249890323181026
+    }
+  },
+  "random_forest": {
+    "validation": {
+      "fraud_caught": 45,
+      "false_alerts": 24,
+      "missed_fraud": 34,
+      "correctly_ignored": 147988,
+      "precision": 0.6521739130434783,
+      "recall": 0.569620253164557,
+      "f1": 0.6081081081081081,
+      "accuracy": 0.9996083489205961
+    },
+    "test": {
+      "fraud_caught": 405,
+      "false_alerts": 24,
+      "missed_fraud": 222,
+      "correctly_ignored": 149791,
+      "precision": 0.9440559440559441,
+      "recall": 0.645933014354067,
+      "f1": 0.7670454545454546,
+      "accuracy": 0.9983648183353053,
+      "pr_auc": 0.8853402484671058
+    }
+  },
+  "previous_version": {
+    "inputs": "amount, transaction type, hour of day",
+    "precision": 0.652,
+    "recall": 0.26,
+    "f1": 0.372,
+    "fraud_caught": 163,
+    "false_alerts": 87,
+    "missed_fraud": 464
+  },
+  "examples": {
+    "alert": {
+      "amount": 3070709.95,
+      "type": "CASH_OUT",
+      "hour": 20,
+      "sender_balance_before": 3070709.95,
+      "sender_balance_after": 0.0,
+      "actually_fraud": true,
+      "score": 0.9962846011186027,
+      "alert": true
+    },
+    "no_alert": {
+      "amount": 880703.38,
+      "type": "TRANSFER",
+      "hour": 18,
+      "sender_balance_before": 11527.0,
+      "sender_balance_after": 0.0,
+      "actually_fraud": false,
+      "score": 0.015563817246289547,
+      "alert": false
+    }
+  }
+}

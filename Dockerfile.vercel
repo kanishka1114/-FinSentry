@@ -1,5 +1,5 @@
 # Container image for hosting the FinSentry-Mini dashboard on Vercel (built from GitHub on every push).
-# It serves the saved results in outputs/ and the saved models in models/; it never trains
+# It serves the saved results in outputs/ and the saved model in models/; it never trains
 # and does not include the PaySim dataset.
 FROM python:3.13-slim
 
@@ -16,7 +16,7 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 COPY .streamlit ./.streamlit
-COPY Results.py ./
+COPY Results.py finsentry.py ./
 COPY pages ./pages
 COPY outputs ./outputs
 COPY models ./models
