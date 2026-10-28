@@ -1,5 +1,6 @@
-# Container image for hosting the FinSentry dashboard on Vercel (built from GitHub on every push).
-# It serves the saved results in outputs/ and models/; it never trains or needs the raw dataset.
+# Container image for hosting the FinSentry-Mini dashboard on Vercel (built from GitHub on every push).
+# It serves the saved results in outputs/ and the saved models in models/; it never trains
+# and does not include the PaySim dataset.
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -9,17 +10,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Exact versions the saved models were trained with (recorded in outputs/metrics.json);
-# a different scikit-learn version may fail to load models/*.joblib.
-RUN pip install \
-    numpy==2.5.4 pandas==3.0.6 scikit-learn==1.9.1 joblib==1.6.0 \
-    streamlit==1.66.0 plotly==7.1.0
+# Exact versions the saved models were trained with; a different scikit-learn version
+# may fail to load models/*.joblib.
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
 
 COPY .streamlit ./.streamlit
-COPY app.py ./
-COPY src ./src
+COPY Results.py ./
+COPY pages ./pages
 COPY outputs ./outputs
 COPY models ./models
 
-# Vercel routes traffic to $PORT (default 80).
-CMD ["sh", "-c", "exec streamlit run app.py --server.port ${PORT:-80} --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false"]
+# Vercel routes traffic to $PORT (default 80). Streamlit serves its health check at /_stcore/health.
+CMD ["sh", "-c", "exec streamlit run Results.py --server.port ${PORT:-80} --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false"]
