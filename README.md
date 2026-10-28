@@ -1,54 +1,55 @@
 # FinSentry-Mini
 
-A small machine-learning project on fraud detection in **PaySim**, a *simulated* mobile-money dataset. It presents one saved experiment (`exp-0781f6ac1d`) from the original FinSentry project: a fixed rule, Logistic Regression and Random Forest, compared on a time-based test period. Nothing here trains a model.
+A small machine-learning project for **post-transaction fraud review** in **PaySim**, a *simulated* mobile-money dataset: after a transaction has happened, decide whether it should be sent for a fraud check. It compares a **simple rule** with a **Random Forest** model on later transactions that the model never saw. Because the model uses the sender's balance after the transaction, it reviews completed transactions; it does not block or predict fraud before a transaction happens.
 
-## What it does
-- **`finsentry_mini.py`** rebuilds the experiment's data: a 1,000,000-row random sample (seed 42), split by time into train (steps 1–323), validation (324–377) and test (378–742). It then scores the test period with the two saved models at their saved thresholds and checks every figure against the saved `outputs/metrics.json`.
-- **Dashboard, three pages:**
-  - **Results:** the data split and the final test results for all three approaches.
-  - **How the threshold works:** how each model's threshold was chosen on the validation period.
-  - **Try a transaction:** scores one example you enter with a saved model.
+## Results (test period, simulated data)
 
-  The first two pages only read saved results. The third uses copies of the two saved models in `models/`.
+| Approach | Fraud caught (of 627) | False alerts | Missed fraud | Precision | Recall | F1 |
+|---|---|---|---|---|---|---|
+| Simple rule | 418 | 26,120 | 209 | 0.02 | 0.67 | 0.03 |
+| Random Forest | 405 | 24 | 222 | 0.94 | 0.65 | 0.77 |
 
-Thresholds were chosen by maximising F1 on the **validation** period. The **test** period was used once, only to report the final results.
+- **Simple rule:** alert on a TRANSFER or CASH_OUT of at least 200,000, or on any transaction of at least 1,000,000.
+- **Random Forest:** many decision trees vote; it alerts when the score is at least 0.741.
+- **Precision:** of the alerts, how many were fraud. **Recall:** of the fraud, how much was caught. **F1:** balances the two (0 to 1).
+- Accuracy is not used: fraud is so rare that never alerting would already be over 99% accurate.
 
-## What is included
-- `outputs/metrics.json`: the saved results of the experiment, an exact copy of the original project's file.
-- `models/`: the two saved models, exact copies of the original project's files.
-- The PaySim CSV (about 471 MB) is **not** included.
+## How it works
+1. **Data:** a random sample of 1,000,000 PaySim transactions (seed 42); 1,279 are fraud.
+2. **Inputs:** amount, transaction type, hour of day, and the sender's balance before and after the transaction. No names or account numbers, and never the fraud label (`isFraud`) or PaySim's own `isFlaggedFraud` column.
+3. **Time split:** train (hours 1–323) to teach the model, validation (324–377) to choose the alert threshold, test (378–742) used once for the final results.
+4. **Threshold:** the score cut-off with the best F1 on the validation period.
+
+## What changed from the first version
+The first version used only amount, type and hour, and reached F1 0.37 (163 fraud caught, 87 false alerts). Adding the sender's balance before and after raised F1 to 0.77 (405 caught, 24 false alerts), with the same sample, split, model settings and threshold method. In PaySim, fraud often empties the sender's account, which the amount alone cannot show. Logistic Regression was dropped to keep the comparison simple.
+
+The first version deliberately left all balance columns out, because PaySim's balances are known to make fraud much easier to spot and the balance after is only known once a transaction is complete. That is why this version is described only as post-transaction review. Columns that test whether the balances add up were not used: they gave a near-perfect score that reflects how the simulator records fraud rather than a pattern worth learning.
+
+The first version's experiment (`exp-0781f6ac1d`, run `a7545b9ebf9d`, 2026-10-20) is unchanged in [FinSentry-original-archive](https://github.com/kanishka1114/FinSentry-original-archive) and in this repository's git history. Its test results were: rule precision 0.016, recall 0.667, F1 0.031; Logistic Regression precision 0.356, recall 0.100, F1 0.157; Random Forest precision 0.652, recall 0.260, F1 0.372.
+
+## Files
+- `finsentry.py`: shared code for loading the data, the time split, the model inputs, the rule and the metrics.
+- `train.py`: trains the Random Forest, chooses the threshold and saves `models/random_forest.joblib` and `outputs/results.json`.
+- `verify.py`: re-scores the test period with the saved model and checks every saved figure. It trains nothing.
+- `Results.py` and `pages/`: the dashboard. It only reads the saved model and results.
+- The PaySim CSV (about 471 MB) is **not** included. Download it from [Kaggle](https://www.kaggle.com/datasets/ealaxi/paysim1) to train or verify.
 
 ## Run the dashboard
-The dashboard needs only the files in this repository.
-
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt        # versions match the saved models
-streamlit run Results.py               # Streamlit prints the local address
+pip install -r requirements.txt        # versions match the saved model
+streamlit run Results.py
 ```
 
-## Verify the saved results (needs the PaySim CSV)
-`finsentry_mini.py` is a verification script. It does not train anything. It rebuilds the test period from the PaySim CSV, scores it with the saved models and checks every figure against `outputs/metrics.json`. Download the CSV from [Kaggle](https://www.kaggle.com/datasets/ealaxi/paysim1), then either place it in `data/` or pass its path:
+Pages: **Results**, **How it works** and **Try a transaction**. On Try a transaction, enter an amount, type, hour and the sender's balances, or click **Load fraud example (alert)** or **Load normal example (no alert)**, both real test-period transactions. A score at or above the threshold raises an alert; a score below it gets no alert.
 
+## Train and verify (needs the PaySim CSV)
 ```bash
-python finsentry_mini.py path/to/PS_20174392719_1491204439457_log.csv
+python train.py path/to/PS_20174392719_1491204439457_log.csv    # about a minute
+python verify.py path/to/PS_20174392719_1491204439457_log.csv   # ends with "Check passed"
 ```
 
-It ends with "every figure above matches" or lists any mismatch and exits with an error. The script scores the Random Forest with `n_jobs=1`, set in memory only. One test transaction's score sits exactly on the threshold, and parallel scoring can move it by one bit, so serial scoring is used to make the result repeatable.
+## Limitation
+PaySim is simulated. These results show how the model did on this simulated data, not how it would perform on real bank transactions. The threshold was chosen on only 79 validation frauds, so results at that threshold can vary.
 
-## Try a transaction
-Open **Try a transaction** in the sidebar. Choose a model, enter an amount, a transaction type and an hour of day (0–23), then click **Check transaction**. The page shows what you entered, the model score, the saved threshold and whether an alert is raised. The model raises an alert when its score is at or above the threshold.
-
-The score is a model output used for ranking, not a guaranteed probability of fraud. This is a classroom demonstration with models trained on simulated data, so an alert does not prove a transaction is fraud. Hour of day is the PaySim simulation step modulo 24, as in training; it is not verified clock time.
-
-## What the metrics mean
-- **Precision:** share of alerts that were fraud.
-- **Recall:** share of fraud that was alerted.
-- **F1:** harmonic mean of precision and recall.
-- **Fraud caught / false alerts / missed fraud:** true positives, false positives and false negatives.
-- **PR-AUC:** summarises precision and recall over all thresholds. Fraud is rare (0.42% of test transactions), so random guessing scores about 0.0042, not 0.5.
-
-Accuracy is not reported, because flagging nothing would already be over 99% accurate.
-
-## Main limitation
-PaySim is simulated, and only three raw inputs are used (amount, transaction type and hour). The results show how these models behaved on one sample of simulated data, not how they would perform on real transactions. Results at a single threshold are also sensitive to the few fraud cases in the validation period (79), which is what the thresholds were chosen from.
+The threshold was chosen on the validation period only. However, before choosing which inputs to add, trial runs compared several input sets and showed both their validation and their test results. The validation results pointed the same way as the test results, and the chosen set was not the top test scorer, but the test period was not completely untouched by that choice.

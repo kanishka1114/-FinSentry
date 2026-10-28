@@ -1,7 +1,7 @@
 """FinSentry-Mini dashboard: Results page.
 
-Shows the saved results of experiment exp-0781f6ac1d from outputs/metrics.json, an exact
-copy of the original project's file. Nothing is trained or scored here.
+Shows the saved results in outputs/results.json (written by train.py). Nothing is trained
+or scored here.
 
     streamlit run Results.py
 """
@@ -9,162 +9,90 @@ import json
 from pathlib import Path
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
-METRICS_PATH = Path(__file__).resolve().parent / "outputs" / "metrics.json"
-EXPECTED_EXPERIMENT = "exp-0781f6ac1d"
-APPROACHES = {"Rule-based": "Rule", "Logistic Regression": "Logistic Regression",
-              "Random Forest": "Random Forest"}
-COLORS = {"Rule": "#7f7f7f", "Logistic Regression": "#1f77b4", "Random Forest": "#2ca02c"}
+RESULTS_PATH = Path(__file__).resolve().parent / "outputs" / "results.json"
 
 
 @st.cache_data
-def load_metrics(path):
+def load_results(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def rate(value):
-    return "undefined" if value is None else f"{value:.3f}"
+def result_row(name, t):
+    return {"Approach": name, "Fraud caught": f"{t['fraud_caught']:,}",
+            "False alerts": f"{t['false_alerts']:,}", "Missed fraud": f"{t['missed_fraud']:,}",
+            "Precision": f"{t['precision']:.2f}", "Recall": f"{t['recall']:.2f}",
+            "F1": f"{t['f1']:.2f}"}
 
 
-def percent(value):
-    return f"{value:.2%}"
-
-
-def decision_rule(model):
-    if model["kind"] == "rule":
-        return "Fixed rule (no score)"
-    return f"Score ≥ {model['threshold']:.3f}"
-
-
-def comparison_table(models):
-    rows = []
-    for key, label in APPROACHES.items():
-        t = models[key]["test"]
-        rows.append({
-            "Approach": label,
-            "Alert when": decision_rule(models[key]),
-            "Precision": rate(t["precision"]),
-            "Recall": rate(t["recall"]),
-            "F1": rate(t["f1"]),
-            "Fraud caught": f"{t['true_positive']:,}",
-            "False alerts": f"{t['false_positive']:,}",
-            "Missed fraud": f"{t['false_negative']:,}",
-        })
-    return pd.DataFrame(rows).set_index("Approach")
-
-
-def confusion_table(test):
+def confusion_table(t):
     return pd.DataFrame(
-        {"Alerted": [f"{test['true_positive']:,}", f"{test['false_positive']:,}"],
-         "Not alerted": [f"{test['false_negative']:,}", f"{test['true_negative']:,}"]},
-        index=["Actually fraud", "Actually legitimate"])
-
-
-def pr_chart(models, baseline):
-    fig = go.Figure()
-    for key in ("Logistic Regression", "Random Forest"):
-        curve = models[key].get("pr_curve_test")
-        if curve:
-            fig.add_trace(go.Scatter(
-                x=curve["recall"], y=curve["precision"], mode="lines+markers", name=key,
-                line={"color": COLORS[key], "width": 2}, marker={"size": 4}))
-    for key, label in APPROACHES.items():
-        t = models[key]["test"]
-        name = ("Rule: its only result" if models[key]["kind"] == "rule"
-                else f"{label}: result at its saved threshold")
-        fig.add_trace(go.Scatter(
-            x=[t["recall"]], y=[t["precision"]], mode="markers", name=name,
-            marker={"color": COLORS[label], "size": 11, "symbol": "diamond",
-                    "line": {"color": "black", "width": 1}}))
-    fig.add_hline(y=baseline, line_dash="dot", line_color="#555555",
-                  annotation_text=f"Random guessing (fraud rate {baseline:.4f})",
-                  annotation_position="top left")
-    fig.update_layout(
-        xaxis_title="Recall (share of fraud that was alerted)",
-        yaxis_title="Precision (share of alerts that were fraud)",
-        xaxis={"range": [0, 1.02], "dtick": 0.2}, yaxis={"range": [0, 1.02], "dtick": 0.2},
-        height=460,
-        template="simple_white", legend={"orientation": "h", "y": -0.2},
-        margin={"t": 20, "b": 10})
-    return fig
+        {"Alert": [f"{t['fraud_caught']:,}", f"{t['false_alerts']:,}"],
+         "No alert": [f"{t['missed_fraud']:,}", f"{t['correctly_ignored']:,}"]},
+        index=["Really fraud", "Really normal"])
 
 
 st.set_page_config(page_title="FinSentry-Mini: Results", layout="wide")
 st.title("FinSentry-Mini: Results")
 
-if not METRICS_PATH.exists():
-    st.error(f"Saved results not found at {METRICS_PATH}.")
+if not RESULTS_PATH.exists():
+    st.error(f"Saved results not found at {RESULTS_PATH}.")
     st.stop()
 
-m = load_metrics(str(METRICS_PATH))
-run = m["run"]
-if run["experiment_id"] != EXPECTED_EXPERIMENT:
-    st.warning(f"metrics.json belongs to experiment {run['experiment_id']}, not "
-               f"{EXPECTED_EXPERIMENT}. The figures below are from that file.")
+r = load_results(str(RESULTS_PATH))
+test = r["split"]["test"]
+rule, rf, before = r["rule"]["test"], r["random_forest"]["test"], r["previous_version"]
 
 st.markdown(
-    f"Saved results from experiment **{run['experiment_id']}** (run {run['run_id']}, "
-    f"{run['timestamp_utc'][:10]}), read from `outputs/metrics.json` (an exact copy of the original project's file). "
-    "No model is trained or re-scored on this page.")
+    "**Goal: post-transaction fraud review.** After a mobile-money transaction has happened, "
+    "decide whether it should be sent for a fraud check. We compare a **simple rule** with a "
+    "**Random Forest** model on the **test period**: "
+    f"{test['rows']:,} later transactions ({test['fraud']} of them fraud) that the model "
+    "never saw while it was trained or while its threshold was chosen.")
 st.info(
-    "**About these results.** PaySim is a simulated mobile-money dataset, not real bank data. "
-    f"Fraud is rare: about 1 in {round(1 / m['sampling']['prevalence_used']):,} transactions "
-    "in the sample. The results describe how these models behaved on simulated data and do "
-    "not show how they would perform in the real world.")
+    "**Simulated data.** PaySim is made-up mobile-money data, not real bank records. "
+    "These results show how the approaches did on this simulated data, not how they would "
+    "do in the real world.")
 
-st.header("Data and time split")
-ds, sp, split = m["dataset"], m["sampling"], m["split"]
-c1, c2, c3 = st.columns(3)
-c1.metric("Transactions in PaySim file", f"{ds['rows_in_file']:,}")
-c2.metric("Random sample used", f"{sp['rows_used']:,}", help=f"Seed {run['seed']}; rows chosen "
-          "without looking at the fraud label.")
-c3.metric("Fraud in sample", f"{sp['fraud_used']:,} ({percent(sp['prevalence_used'])})")
+st.header("Rule vs Random Forest (test period)")
+st.dataframe(pd.DataFrame([result_row("Simple rule", rule), result_row("Random Forest", rf)])
+             .set_index("Approach"), width="stretch")
+st.markdown(
+    f"- **Simple rule:** {r['rule']['description']}\n"
+    f"- **Random Forest:** many decision trees vote on each transaction; it raises an alert "
+    f"when its score is at least {r['model']['threshold']:.3f}.\n"
+    "- **Precision:** of the alerts, how many were really fraud. "
+    "**Recall:** of the fraud, how much was caught. **F1:** one number that balances the two "
+    "(0 = useless, 1 = perfect).")
 
-periods = []
-for key, label, role in (("train", "Train", "Models fitted"),
-                         ("validation", "Validation", "Thresholds chosen"),
-                         ("test", "Test", "Results below")):
-    first, last = split["step_boundaries"][key]
-    s = split[key]
-    periods.append({"Period": label, "Hourly steps": f"{first}–{last}",
-                    "Transactions": f"{s['rows']:,}", "Fraud": f"{s['fraud']:,}",
-                    "Fraud rate": percent(s["prevalence"]), "Used for": role})
-st.dataframe(pd.DataFrame(periods).set_index("Period"), width="stretch")
-st.caption(
-    "The sample is split by time, so every model is tested on transactions that come after "
-    "the ones it learned from. Model inputs are amount, log amount, hour of day and "
-    "transaction type. The fraud rate differs between periods, which affects precision.")
+st.success(
+    f"The Random Forest caught **{rf['fraud_caught']} of {test['fraud']}** frauds with only "
+    f"**{rf['false_alerts']} false alerts**. The rule caught {rule['fraud_caught']}, but raised "
+    f"{rule['false_alerts']:,} false alerts, so almost every alert it raised was wrong.")
 
-models = m["models"]
-st.header("Test results")
-st.dataframe(comparison_table(models), width="stretch")
-st.caption(
-    "Precision: share of alerts that were fraud. Recall: share of fraud that was alerted. "
-    "F1 is the harmonic mean of precision and recall. Each model's threshold is the one that maximised F1 on the "
-    "validation period. The rule flags a TRANSFER or CASH_OUT of at least 200,000, or any "
-    "transaction of at least 1,000,000.")
+st.header("What changed from the first version")
+st.dataframe(pd.DataFrame([
+    {"Version": "First version", "Model inputs": before["inputs"],
+     "Fraud caught": f"{before['fraud_caught']:,}", "False alerts": f"{before['false_alerts']:,}",
+     "Precision": f"{before['precision']:.2f}", "Recall": f"{before['recall']:.2f}",
+     "F1": f"{before['f1']:.2f}"},
+    {"Version": "This version", "Model inputs": before["inputs"] + ", sender's balance before "
+     "and after", "Fraud caught": f"{rf['fraud_caught']:,}", "False alerts": f"{rf['false_alerts']:,}",
+     "Precision": f"{rf['precision']:.2f}", "Recall": f"{rf['recall']:.2f}",
+     "F1": f"{rf['f1']:.2f}"},
+]).set_index("Version"), width="stretch")
+st.markdown(
+    "Adding the sender's account balance before and after the transaction raised F1 from "
+    f"**{before['f1']:.2f} to {rf['f1']:.2f}**. In PaySim, fraud often empties the sender's "
+    "account, and the amount alone cannot show that. The balance after is only known once "
+    "the transaction is complete, so this model reviews transactions after they happen; it "
+    "does not stop or predict fraud beforehand.")
 
-st.subheader("Confusion matrices (test period)")
-for col, (key, label) in zip(st.columns(3), APPROACHES.items()):
+st.header("Confusion matrices (test period)")
+c1, c2 = st.columns(2)
+for col, name, t in ((c1, "Simple rule", rule), (c2, "Random Forest", rf)):
     with col:
-        st.markdown(f"**{label}**")
-        st.dataframe(confusion_table(models[key]["test"]), width="stretch")
-
-st.header("Precision-recall curve (test period)")
-baseline = models["Random Forest"]["test"]["pr_auc_baseline"]
-st.plotly_chart(pr_chart(models, baseline), width="stretch")
-lr, rf = models["Logistic Regression"]["test"], models["Random Forest"]["test"]
-st.caption(
-    "Each curve shows the precision and recall a model would reach at every possible "
-    "threshold; diamonds mark the results in the table above. The rule has no score, so it "
-    "is a single point. PR-AUC summarises the whole curve in one number (saved as average "
-    f"precision): Logistic Regression {rate(lr['pr_auc'])}, Random Forest "
-    f"{rate(rf['pr_auc'])}; random guessing would score about {baseline:.4f}.")
-st.caption(
-    "Limitation of the saved curve: `metrics.json` keeps 200 of the curve's points, spaced "
-    "by position rather than by recall, and dots mark them. Between dots the line is only a "
-    "connector. Logistic Regression has no saved points between recall 0 and 0.22, so its "
-    "diamond lies off the drawn line. The point at recall 0 and precision 1 is a "
-    "convention of the plotting library, not a measured threshold.")
+        st.markdown(f"**{name}**")
+        st.dataframe(confusion_table(t), width="stretch")
+st.caption("Rows show what each transaction really was; columns show whether it was alerted.")
