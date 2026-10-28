@@ -86,8 +86,11 @@ m = load_metrics(str(METRICS_PATH))
 models = m["models"]
 split = m["split"]
 st.markdown(
-    f"Saved data from experiment **{m['run']['experiment_id']}**. Nothing on this page is "
-    "trained, re-scored or re-tuned.")
+    "Each model's alert threshold was chosen using the **validation period**, a stretch of "
+    "transactions kept separate from both training and the final test.")
+st.info(
+    "**Simulated data.** PaySim is made-up mobile-money data, not real bank records, so these "
+    "numbers do not show how the models would do in the real world.")
 
 st.header("Scores and thresholds")
 st.markdown(

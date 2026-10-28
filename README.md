@@ -18,6 +18,8 @@ Thresholds were chosen by maximising F1 on the **validation** period. The **test
 - `models/`: the two saved models, exact copies of the original project's files.
 - The PaySim CSV (about 471 MB) is **not** included.
 
+Provenance: every figure on the dashboard comes from experiment `exp-0781f6ac1d`, run `a7545b9ebf9d` (2026-10-20), as saved in `outputs/metrics.json`. The dashboard does not train, re-score or re-tune anything except the single transaction you enter on the Try a transaction page.
+
 ## Run the dashboard
 The dashboard needs only the files in this repository.
 
@@ -37,7 +39,9 @@ python finsentry_mini.py path/to/PS_20174392719_1491204439457_log.csv
 It ends with "every figure above matches" or lists any mismatch and exits with an error. The script scores the Random Forest with `n_jobs=1`, set in memory only. One test transaction's score sits exactly on the threshold, and parallel scoring can move it by one bit, so serial scoring is used to make the result repeatable.
 
 ## Try a transaction
-Open **Try a transaction** in the sidebar. Choose a model, enter an amount, a transaction type and an hour of day (0–23), then click **Check transaction**. The page shows what you entered, the model score, the saved threshold and whether an alert is raised. The model raises an alert when its score is at or above the threshold.
+Open **Try a transaction** in the sidebar. Choose a model, enter an amount, a transaction type and an hour of day (0–23), then click **Check transaction**. The page shows what you entered, the model score, the saved threshold and whether an alert is raised. The model raises an alert when its score is at or above the threshold; a score below the threshold gets no alert.
+
+To see an alert straight away, click **Load Logistic Regression example** or **Load Random Forest example**. Each fills in a TRANSFER from the test period that the saved model alerts on (Logistic Regression: 9,725,837.08 at hour 14, score about 0.999929 against threshold 0.997993; Random Forest: 461,369.99 at hour 7, score about 0.795842 against threshold 0.766811). Any input that scores below the threshold gets no alert; the thresholds are never changed to make an input alert.
 
 The score is a model output used for ranking, not a guaranteed probability of fraud. This is a classroom demonstration with models trained on simulated data, so an alert does not prove a transaction is fraud. Hour of day is the PaySim simulation step modulo 24, as in training; it is not verified clock time.
 

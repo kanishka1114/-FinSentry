@@ -105,14 +105,13 @@ if run["experiment_id"] != EXPECTED_EXPERIMENT:
                f"{EXPECTED_EXPERIMENT}. The figures below are from that file.")
 
 st.markdown(
-    f"Saved results from experiment **{run['experiment_id']}** (run {run['run_id']}, "
-    f"{run['timestamp_utc'][:10]}), read from `outputs/metrics.json` (an exact copy of the original project's file). "
-    "No model is trained or re-scored on this page.")
+    "These are the results on the **test period**: later transactions that the models never "
+    "saw while they were trained or while their thresholds were chosen.")
 st.info(
-    "**About these results.** PaySim is a simulated mobile-money dataset, not real bank data. "
-    f"Fraud is rare: about 1 in {round(1 / m['sampling']['prevalence_used']):,} transactions "
-    "in the sample. The results describe how these models behaved on simulated data and do "
-    "not show how they would perform in the real world.")
+    "**Simulated data.** PaySim is made-up mobile-money data, not real bank records. "
+    f"Fraud is rare: about 1 in {round(1 / m['sampling']['prevalence_used']):,} transactions. "
+    "These results show how the models did on this simulated data, not how they would do "
+    "in the real world.")
 
 st.header("Data and time split")
 ds, sp, split = m["dataset"], m["sampling"], m["split"]
